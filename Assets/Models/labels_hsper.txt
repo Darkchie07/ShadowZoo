@@ -1,0 +1,11 @@
+bird
+chicken
+cow
+crab
+deer
+dog
+elephant
+moose
+panther
+rabbit
+snail
