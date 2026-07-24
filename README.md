@@ -36,6 +36,7 @@ Program ini menggunakan **2 display**:
 - Hanya mendukung 5 jenis hewan.
 - Performa deteksi terbaik dicapai di ruangan gelap dengan pencahayaan senter tunggal (kontras bayangan tinggi).
 - Membutuhkan kamera yang dapat menangkap kontur bayangan dengan jelas.
+- Hewan belum memiliki animasi
 
 ## Kredit
 
