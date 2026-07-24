@@ -24,14 +24,14 @@ public class DeerBehaviour : AnimalBehaviourBase
         }
         base.Wander();
         if (Vector3.Distance(transform.position, wanderTarget) < 0.2f && Random.value < alertPauseChance)
-            pauseTimer = alertPauseDuration; // berhenti waspada sebentar kayak rusa asli
+            pauseTimer = alertPauseDuration;
     }
 
     protected override void AnimateStep(float distanceRemaining)
     {
         hopTimer += Time.deltaTime * 8f;
         Vector3 p = transform.position;
-        p.y += Mathf.Abs(Mathf.Sin(hopTimer)) * 0.05f * Time.deltaTime; // lompatan kecil tiap langkah
+        p.y += Mathf.Abs(Mathf.Sin(hopTimer)) * 0.05f * Time.deltaTime; 
         transform.position = p;
         base.AnimateStep(distanceRemaining);
     }

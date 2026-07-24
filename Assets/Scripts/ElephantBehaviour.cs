@@ -9,7 +9,7 @@ public class ElephantBehaviour : AnimalBehaviourBase
 
     void Awake()
     {
-        enterSpeed = 1.2f;  // lambat & berat
+        enterSpeed = 1.2f; 
         wanderSpeed = 0.7f;
         wanderRadius = 1f;
     }
@@ -25,7 +25,7 @@ public class ElephantBehaviour : AnimalBehaviourBase
         if (baseScale == Vector3.zero) baseScale = transform.localScale;
         stepTimer += Time.deltaTime * stompFrequency;
         float s = 1f + Mathf.Sin(stepTimer) * scalePulse;
-        transform.localScale = baseScale * s; // efek "berat" tiap langkah
+        transform.localScale = baseScale * s; 
         base.AnimateStep(distanceRemaining);
     }
 }

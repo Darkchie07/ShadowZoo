@@ -10,7 +10,7 @@ public class PantherBehaviour : AnimalBehaviourBase
     void Awake()
     {
         enterSpeed = 2f;
-        wanderSpeed = 0.8f; // prowl pelan
+        wanderSpeed = 0.8f;
         wanderRadius = 2f;
     }
 
@@ -23,7 +23,7 @@ public class PantherBehaviour : AnimalBehaviourBase
         base.Wander();
         if (Vector3.Distance(transform.position, wanderTarget) < 0.2f && sprintTimer <= 0f && Random.value < sprintChance)
         {
-            sprintTimer = sprintDuration; // sergapan cepat kayak panther asli
+            sprintTimer = sprintDuration;
             PickNewWanderTarget();
         }
     }

@@ -8,16 +8,16 @@ public class BirdBehaviour : AnimalBehaviourBase
 
     void Awake()
     {
-        enterSpeed = 4.5f;   // masuk layar cepet, kesan terbang
+        enterSpeed = 4.5f; 
         wanderSpeed = 3f;
-        wanderRadius = 2.5f; // jelajah area lebih luas
+        wanderRadius = 2.5f;
     }
 
     protected override void AnimateStep(float distanceRemaining)
     {
         bobTimer += Time.deltaTime * flapFrequency;
         Vector3 p = transform.position;
-        p.y += Mathf.Sin(bobTimer) * bobAmplitude * Time.deltaTime; // naik-turun kayak kepakan sayap
+        p.y += Mathf.Sin(bobTimer) * bobAmplitude * Time.deltaTime;
         transform.position = p;
         base.AnimateStep(distanceRemaining);
     }

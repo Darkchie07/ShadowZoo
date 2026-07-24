@@ -21,8 +21,9 @@ public class MooseBehaviour : AnimalBehaviourBase
             if (animator != null) animator.SetFloat("Speed", 0f);
             return;
         }
+
         base.Wander();
         if (Vector3.Distance(transform.position, wanderTarget) < 0.2f && Random.value < grazeChance)
-            grazeTimer = grazeDuration; // berhenti kayak lagi makan rumput
+            grazeTimer = grazeDuration;
     }
 }

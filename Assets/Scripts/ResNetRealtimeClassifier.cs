@@ -6,10 +6,10 @@ using UnityEngine.UI;
 
 public class ResNetRealtimeClassifier : MonoBehaviour
 {
-    public Unity.InferenceEngine.ModelAsset modelAsset;   // -> HSPR_DenseNet121_Aug_CB.onnx
-    public TextAsset labelsCsv;                           // -> labels_hsper.txt
-    public RawImage previewImage;      // preview kamera asli (opsional)
-    public RawImage modelInputPreview; // nampilin persis frame 240x320 yg dikirim ke model
+    public Unity.InferenceEngine.ModelAsset modelAsset;   
+    public TextAsset labelsCsv;                     
+    public RawImage previewImage;    
+    public RawImage modelInputPreview; 
 
     [Tooltip("Skor minimal biar prediksi dianggap valid, di bawah ini dianggap 'tidak yakin'")]
     public float confidenceThreshold = 60f;
@@ -17,38 +17,33 @@ public class ResNetRealtimeClassifier : MonoBehaviour
     [System.Serializable]
     public class LabelPrefabPair
     {
-        public string label;      // harus persis sama dgn isi labels_hsper.txt, mis. "dog"
+        public string label;     
         public GameObject prefab;
     }
 
     [Header("Spawn Setup")]
-    public LabelPrefabPair[] labelPrefabs;   // isi 5 pasang label->prefab di Inspector (prefab harus punya AnimalBehaviourBase turunannya)
-    public int maxObjects = 6;               // maksimal objek hidup bersamaan
+    public LabelPrefabPair[] labelPrefabs;   
+    public int maxObjects = 6;               
 
     [Header("Off-screen Spawn")]
-    public Camera spawnCamera;                // default Camera.main kalau kosong
-    public float groundY = 0f;                 // ketinggian tanah (world Y) tempat animal berpijak
-    [Range(0f, 0.3f)] public float offscreenMargin = 0.15f; // seberapa jauh di luar viewport titik spawn-nya
+    public Camera spawnCamera;               
+    public float groundY = 0f;            
+    [Range(0f, 0.3f)] public float offscreenMargin = 0.15f; 
 
     private Dictionary<string, GameObject> prefabLookup;
     private Queue<GameObject> spawnedQueue = new Queue<GameObject>();
-    private string lastSpawnedLabel = null;  // debounce: cegah instantiate label yg sama berturut-turut
+    private string lastSpawnedLabel = null; 
 
     private Unity.InferenceEngine.Worker worker;
     private string[] labels;
     private WebCamTexture webcamTex;
     private Texture2D frameTex;
 
-    [SerializeField] private float inferenceInterval = 0.5f; // jangan infer tiap frame, berat!
-
-    // Model dilatih dengan Resize((320,240)) -> H=320, W=240 (bukan 224x224)
-    // Training juga men-squish gambar landscape langsung ke ukuran ini (tanpa crop),
-    // jadi Blit langsung tanpa jaga aspect ratio itu SUDAH benar & konsisten dg training.
+    [SerializeField] private float inferenceInterval = 0.5f;
+    
     private const int InputW = 240;
     private const int InputH = 320;
 
-    // Output model tetap [1,1000] (sisa classifier ImageNet bawaan),
-    // tapi cuma index 0-10 yang bermakna -> 11 kelas HaSPeR.
     private const int NumClasses = 11;
 
     void Start()
@@ -56,7 +51,6 @@ public class ResNetRealtimeClassifier : MonoBehaviour
         var model = Unity.InferenceEngine.ModelLoader.Load(modelAsset);
         worker = new Unity.InferenceEngine.Worker(model, Unity.InferenceEngine.BackendType.GPUCompute);
 
-        // labels_hsper.txt = satu label per baris (bukan koma)
         labels = labelsCsv.text.Split('\n')
             .Select(s => s.Trim())
             .Where(s => s.Length > 0)
@@ -90,21 +84,19 @@ public class ResNetRealtimeClassifier : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(inferenceInterval);
-            if (webcamTex.width < 100) continue; // belum siap
-
+            if (webcamTex.width < 100) continue; 
             CaptureAndClassify();
         }
     }
 
     void CaptureAndClassify()
     {
-        // ambil frame kamera, resize langsung ke ukuran input model (240x320)
         RenderTexture rt = RenderTexture.GetTemporary(InputW, InputH);
         Graphics.Blit(webcamTex, rt);
         RenderTexture prev = RenderTexture.active;
         RenderTexture.active = rt;
         frameTex.ReadPixels(new Rect(0, 0, InputW, InputH), 0, 0);
-        frameTex.Apply(); // ini yang tampil di modelInputPreview, isinya persis apa yg dikirim ke model
+        frameTex.Apply();
         RenderTexture.active = prev;
         RenderTexture.ReleaseTemporary(rt);
 
@@ -113,9 +105,6 @@ public class ResNetRealtimeClassifier : MonoBehaviour
         var output = worker.PeekOutput() as Unity.InferenceEngine.Tensor<float>;
 
         float[] scores = output.DownloadToArray();
-
-        // ambil top-3 dari 11 kelas asli saja (index 0-10),
-        // index 11-999 sisa classifier ImageNet lama & tidak relevan
         var top3 = Enumerable.Range(0, NumClasses)
             .OrderByDescending(i => scores[i])
             .Take(3)
@@ -135,16 +124,10 @@ public class ResNetRealtimeClassifier : MonoBehaviour
         }
 
         input.Dispose();
-        // JANGAN dispose 'output' di sini: PeekOutput() ngembaliin tensor internal
-        // milik worker (bukan copy punya kita), dipakai lagi tiap inference berikutnya.
-        // Dispose manual di sini bikin buffer GPU internal worker rusak pelan-pelan
-        // seiring banyak frame -> ini penyebab confidence makin lama makin drop.
     }
 
     void TrySpawnObject(string label)
     {
-        // DEBOUNCE: kalau label sama persis dengan objek terakhir yang di-spawn,
-        // jangan instantiate lagi -> mencegah spam objek sama terus tiap frame realtime.
         if (label == lastSpawnedLabel)
             return;
 
@@ -157,9 +140,6 @@ public class ResNetRealtimeClassifier : MonoBehaviour
         Vector3 spawnPos = GetOffscreenSpawnPosition();
         Vector3 targetInScreen = GetInScreenTarget();
 
-        // Y posisi murni dari prefab aslinya (bukan hasil raycast/hitung ke tanah).
-        // X/Z tetap dari proyeksi kamera (biar muncul dari luar layar & jalan ke tengah),
-        // tapi ketinggian (Y) full ngikut prefab -> nanti "ngambang dikit" cuma dari AnimateStep (bobbing/hop).
         float prefabY = prefab.transform.position.y;
         spawnPos.y = prefabY;
         targetInScreen.y = prefabY;
@@ -168,15 +148,12 @@ public class ResNetRealtimeClassifier : MonoBehaviour
         spawnedQueue.Enqueue(obj);
         lastSpawnedLabel = label;
 
-        // kasih tau behaviour prefab titik tujuan di dalam layar + Euler asli dari ASSET prefab
-        // (bukan dari 'obj' yang udah di-Instantiate, biar gak kena ambiguitas decompose quaternion->euler)
         var behaviour = obj.GetComponent<AnimalBehaviourBase>();
         if (behaviour != null)
             behaviour.Initialize(targetInScreen, prefab.transform.eulerAngles);
         else
             Debug.LogWarning($"Prefab '{label}' gak punya komponen AnimalBehaviourBase, dia bakal diam di titik spawn.");
 
-        // batasi maksimal objek hidup bersamaan; hapus yang paling lama kalau kelebihan
         while (spawnedQueue.Count > maxObjects)
         {
             GameObject oldest = spawnedQueue.Dequeue();
@@ -185,10 +162,9 @@ public class ResNetRealtimeClassifier : MonoBehaviour
         }
     }
 
-    // Ambil titik random di salah satu dari 4 sisi luar viewport, lalu proyeksikan ke bidang tanah
     Vector3 GetOffscreenSpawnPosition()
     {
-        int side = Random.Range(0, 4); // 0=kiri, 1=kanan, 2=atas, 3=bawah
+        int side = Random.Range(0, 4);
         float vx = 0.5f, vy = 0.5f;
         switch (side)
         {
@@ -200,7 +176,6 @@ public class ResNetRealtimeClassifier : MonoBehaviour
         return GetPointOnGround(vx, vy);
     }
 
-    // Titik tujuan di dalam layar (area tengah), tetap dipin ke bidang tanah
     Vector3 GetInScreenTarget()
     {
         float vx = Random.Range(0.25f, 0.75f);
@@ -208,8 +183,6 @@ public class ResNetRealtimeClassifier : MonoBehaviour
         return GetPointOnGround(vx, vy);
     }
 
-    // Tembak ray dari kamera lewat titik viewport, potong di bidang Y = groundY.
-    // Ini yang bikin objek nempel di tanah, bukan ngambang di depth kamera yang salah.
     Vector3 GetPointOnGround(float viewportX, float viewportY)
     {
         Ray ray = spawnCamera.ViewportPointToRay(new Vector3(viewportX, viewportY, 0f));
@@ -226,14 +199,11 @@ public class ResNetRealtimeClassifier : MonoBehaviour
         float[] mean = { 0.485f, 0.456f, 0.406f };
         float[] std  = { 0.229f, 0.224f, 0.225f };
         var data = new float[1 * 3 * InputH * InputW];
-        Color[] pixels = tex.GetPixels(); // baris 0 = BAWAH gambar (konvensi Unity)
+        Color[] pixels = tex.GetPixels();
 
         for (int y = 0; y < InputH; y++)
         for (int x = 0; x < InputW; x++)
         {
-            // Training (PIL/torchvision) baca gambar baris 0 = ATAS.
-            // Unity GetPixels baris 0 = BAWAH -> dibalik biar orientasinya
-            // sama persis kayak yang dilihat model waktu training.
             int srcY = InputH - 1 - y;
             Color c = pixels[srcY * InputW + x];
 
